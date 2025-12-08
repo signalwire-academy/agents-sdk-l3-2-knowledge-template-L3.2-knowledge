@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Technical support agent with RAG capabilities.
 
-Lab 3.2 Deliverable: Demonstrates knowledge management with search skill,
+Lab 3.2 Deliverable: Demonstrates knowledge management with search function,
 live data integration via DataMap, and ticket creation.
 """
 
@@ -10,6 +10,35 @@ from datetime import datetime
 from signalwire_agents import AgentBase, SwaigFunctionResult
 from signalwire_agents.core.data_map import DataMap
 from signalwire_agents.core.function_result import SwaigFunctionResult as DmResult
+
+
+# Simulated knowledge base
+KNOWLEDGE_BASE = {
+    "password reset": {
+        "title": "How to Reset Your Password",
+        "content": "To reset your password: Click 'Forgot Password' on the login screen, "
+                   "enter your email address, and check your inbox for a reset link. "
+                   "The link expires in 24 hours."
+    },
+    "installation": {
+        "title": "Installation Guide",
+        "content": "Download from our website and run the installer. "
+                   "Windows users should run as Administrator. "
+                   "System requirements: Windows 10+, macOS 10.15+, or Ubuntu 20.04+."
+    },
+    "license activation": {
+        "title": "License Activation",
+        "content": "To activate your license, go to Settings > License > Activate. "
+                   "Enter your license key and click Activate. "
+                   "Each license supports up to 3 devices."
+    },
+    "performance optimization": {
+        "title": "Performance Tips",
+        "content": "For better performance: Close unnecessary applications, "
+                   "ensure you have at least 8GB RAM, clear cache regularly, "
+                   "and keep the software updated."
+    }
+}
 
 
 class SupportAgent(AgentBase):
@@ -94,10 +123,48 @@ class SupportAgent(AgentBase):
     def _setup_functions(self):
         """Define support functions."""
 
+        @self.tool(
+            description="Search the knowledge base for answers",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query for the knowledge base"
+                    }
+                },
+                "required": ["query"]
+            },
+            fillers=["Searching the knowledge base..."]
+        )
+        def search_knowledge(args: dict, raw_data: dict = None) -> SwaigFunctionResult:
+            """Search the knowledge base for relevant information."""
+            query = args.get("query", "").lower()
+            raw_data = raw_data or {}
+
+            # Search for matching entries
+            results = []
+            for key, entry in KNOWLEDGE_BASE.items():
+                # Check if query terms appear in key or content
+                query_terms = query.split()
+                if any(term in key for term in query_terms) or \
+                   any(term in entry["content"].lower() for term in query_terms):
+                    results.append(entry)
+
+            if results:
+                response_parts = []
+                for result in results[:3]:  # Limit to 3 results
+                    response_parts.append(f"{result['title']}: {result['content']}")
+                return SwaigFunctionResult("\n\n".join(response_parts))
+
+            return SwaigFunctionResult(
+                "I couldn't find information about that in the knowledge base. "
+                "Would you like me to create a support ticket for further assistance?"
+            )
+
         @self.tool(description="Get installation help")
         def installation_help(args: dict, raw_data: dict = None) -> SwaigFunctionResult:
             raw_data = raw_data or {}
-            global_data = raw_data.get("global_data", {})
             return SwaigFunctionResult(
                 "For installation: Download from our website and run the installer. "
                 "Windows users should run as Administrator. "
@@ -124,7 +191,6 @@ class SupportAgent(AgentBase):
             """Troubleshoot common issues."""
             issue = args.get("issue", "")
             raw_data = raw_data or {}
-            global_data = raw_data.get("global_data", {})
             issue_lower = issue.lower()
 
             # Common issue patterns
@@ -194,7 +260,6 @@ class SupportAgent(AgentBase):
             description = args.get("description", "")
             priority = args.get("priority", "medium")
             raw_data = raw_data or {}
-            global_data = raw_data.get("global_data", {})
             ticket_id = f"TKT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
             return (
@@ -234,7 +299,6 @@ class SupportAgent(AgentBase):
             question = args.get("question", "")
             feedback = args.get("feedback", "")
             raw_data = raw_data or {}
-            global_data = raw_data.get("global_data", {})
             return (
                 SwaigFunctionResult(
                     "Thank you for the feedback. I've logged this for our team to review. "
