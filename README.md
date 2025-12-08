@@ -63,4 +63,10 @@ See `reference/starter.py` for a boilerplate template.
 
 ---
 
+## Next Assignment
+
+Ready to continue? [**Start Lab 3.3: Performance Optimization**](https://classroom.github.com/a/c0to6Gi3)
+
+---
+
 *SignalWire AI Agents Certification*
